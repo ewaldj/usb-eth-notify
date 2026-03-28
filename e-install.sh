@@ -9,6 +9,7 @@ set -euo pipefail
 readonly VERSION="1.5"
 readonly REPO_RAW_BASE="https://raw.githubusercontent.com/ewaldj/usb-eth-notify/refs/heads/main"
 readonly TARGET_SCRIPT="/usr/local/bin/usb-eth-notify.sh"
+readonly TARGET_SCRIPT_LINK="/usr/local/bin/usb-eth-notify"
 readonly RULES_FILE="/etc/udev/rules.d/99-usb-eth.rules"
 readonly SERVICE_FILE="/etc/systemd/system/usb-eth-notify.service"
 
@@ -54,7 +55,7 @@ install_script() {
     curl -fsSL "${REPO_RAW_BASE}/usb-eth-notify.sh" -o "$tmp_file"
     $SUDO install -m 0755 "$tmp_file" "$TARGET_SCRIPT"
     rm -f "$tmp_file"
-
+    $SUDO ln -sfn $TARGET_SCRIPT $TARGET_SCRIPT_LINK
     echo "✔ Script installed: $TARGET_SCRIPT"
 }
 
