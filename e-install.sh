@@ -10,7 +10,7 @@ readonly SCRIPT_NAME="$(basename "$0")"
 set -euo pipefail
 
 readonly CUSTOM_GITHUB_TOOLS=(
-    "usb-eth-notify|https://raw.githubusercontent.com/ewaldj/eping/main/usb-eth-notify.sh"
+    "usb-eth-notify|https://raw.githubusercontent.com/ewaldj/usb-eth-notify/main/usb-eth-notify.sh"
 )
 
 readonly DEFAULT_BINDIR="/usr/local/bin"
