@@ -6,7 +6,7 @@
 # !! SPECIAL VERSION FOR USB-ETH-NOTIFY !! 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
-readonly VERSION="s1.0"
+readonly VERSION="s1.1"
 readonly SCRIPT_NAME="$(basename "$0")"
 
 set -euo pipefail
@@ -91,6 +91,23 @@ print_default_plan_list() {
         fi
     done
 }
+
+# create rules file 
+readonly RULES_FILE="/etc/udev/rules.d/99-usb-eth.rules"
+
+create_usb-eth.rules() {
+    cat >"$RULES_FILE" <<'EOF_RULES_FILE'
+# /etc/udev/rules.d/99-usb-eth.rules
+# When a USB Ethernet adapter is connected, call the notification script.
+#
+# Triggers on USB network interfaces (subsystem "net", parent device is USB).
+# The USB device DEVPATH is passed via ENV{}.
+
+ACTION=="add", SUBSYSTEM=="net", \
+    ATTRS{idVendor}=="?*", ATTRS{idProduct}=="?*", \
+    RUN+="/bin/bash -c '/usr/local/bin/usb-eth-notify.sh \"%p\" &'"
+EOF_RULES_FILE
+
 
 TMPDIR_INSTALL="$(mktemp -d)"
 cleanup() {
@@ -190,23 +207,9 @@ for entry in "${CUSTOM_GITHUB_TOOLS[@]}"; do
     fi
     echo
 done
-
-# create rules file 
-readonly RULES_FILE="/etc/udev/rules.d/99-usb-eth.rules"
-
-create_usb-eth.rules() {
-    cat >"$RULES_FILE" <<'EOF_RULES_FILE'
-# /etc/udev/rules.d/99-usb-eth.rules
-# When a USB Ethernet adapter is connected, call the notification script.
-#
-# Triggers on USB network interfaces (subsystem "net", parent device is USB).
-# The USB device DEVPATH is passed via ENV{}.
-
-ACTION=="add", SUBSYSTEM=="net", \
-    ATTRS{idVendor}=="?*", ATTRS{idProduct}=="?*", \
-    RUN+="/bin/bash -c '/usr/local/bin/usb-eth-notify.sh \"%p\" &'"
-EOF_RULES_FILE
 }
+
+create_usb-eth.rules
 
 # 2. Install udev rule
 install -m 644 99-usb-eth.rules /etc/udev/rules.d/99-usb-eth.rules
