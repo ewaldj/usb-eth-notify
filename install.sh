@@ -14,7 +14,7 @@ echo "✔ Script installed: /usr/local/bin/usb-eth-notify.sh"
 install -m 644 99-usb-eth.rules /etc/udev/rules.d/99-usb-eth.rules
 echo "✔ udev rule installed: /etc/udev/rules.d/99-usb-eth.rules"
 
-# 4. Check dependency (usbutils for lsusb)
+# 3. Check dependency (usbutils for lsusb)
 if ! command -v lsusb &>/dev/null; then
     echo "Installing usbutils (required for lsusb)..."
     apt-get install -y usbutils
