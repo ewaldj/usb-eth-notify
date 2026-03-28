@@ -10,6 +10,7 @@ readonly VERSION="1.1"
 readonly REPO_RAW_BASE="https://raw.githubusercontent.com/ewaldj/usb-eth-notify/refs/heads/main"
 readonly TARGET_SCRIPT="/usr/local/bin/usb-eth-notify.sh"
 readonly RULES_FILE="/etc/udev/rules.d/99-usb-eth.rules"
+readonly SERVICE_FILE="/etc/systemd/system/usb-eth-notify.service"
 
 SUDO=""
 
@@ -77,6 +78,45 @@ EOF
 
     echo "✔ udev rule created: $RULES_FILE"
 }
+
+
+create_service() {
+    local tmp_file
+    tmp_file="$(mktemp)"
+
+    cat >"$tmp_file" <<'EOF'
+[Unit]
+Description=Check USB Ethernet adapter USB version and notify users
+# Start after getty/login manager so TTYs are available
+After=getty.target multi-user.target systemd-user-sessions.service
+Wants=multi-user.target
+
+[Service]
+Type=oneshot
+# Wait briefly so the MOTD appears first, then show our message
+ExecStartPre=/bin/sleep 3
+ExecStart=/usr/local/bin/usb-eth-notify.sh
+# Ignore errors if no adapter is present
+SuccessExitStatus=0 1
+RemainAfterExit=no
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    $SUDO install -m 0644 "$tmp_file" "$SERVICE_FILE"
+    rm -f "$tmp_file"
+
+    echo "✔ service file created: $SERVICE_FILE"
+}
+
+# 6. systemd-Service  activate & start 
+systemctl daemon-reload
+systemctl enable --now usb-eth-notify.service
+echo "✔  systemd-Service aktiviert"
+
 
 install_dependencies() {
     if ! command -v lsusb >/dev/null 2>&1; then
