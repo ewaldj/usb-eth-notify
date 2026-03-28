@@ -1,9 +1,0 @@
-# /etc/udev/rules.d/99-usb-eth.rules
-# When a USB Ethernet adapter is connected, call the notification script.
-#
-# Triggers on USB network interfaces (subsystem "net", parent device is USB).
-# The USB device DEVPATH is passed via ENV{}.
-
-ACTION=="add", SUBSYSTEM=="net", \
-    ATTRS{idVendor}=="?*", ATTRS{idProduct}=="?*", \
-    RUN+="/bin/bash -c '/usr/local/bin/usb-eth-notify.sh \"%p\" &'"
