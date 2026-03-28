@@ -3,8 +3,10 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 # e-install.sh by ewald@jeitler.cc 2026 https://www.jeitler.guru
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# !! SPECIAL VERSION FOR USB-ETH-NOTIFY !! 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
-readonly VERSION="1.0"
+readonly VERSION="s1.0"
 readonly SCRIPT_NAME="$(basename "$0")"
 
 set -euo pipefail
