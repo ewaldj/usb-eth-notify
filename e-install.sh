@@ -189,8 +189,43 @@ for entry in "${CUSTOM_GITHUB_TOOLS[@]}"; do
     echo
 done
 
+# create rules file 
+readonly RULES_FILE="/etc/udev/rules.d/99-usb-eth.rules"
+
+create_usb-eth.rules() {
+    cat >"$RULES_FILE" <<'EOF_RULES_FILE'
+# /etc/udev/rules.d/99-usb-eth.rules
+# When a USB Ethernet adapter is connected, call the notification script.
+#
+# Triggers on USB network interfaces (subsystem "net", parent device is USB).
+# The USB device DEVPATH is passed via ENV{}.
+
+ACTION=="add", SUBSYSTEM=="net", \
+    ATTRS{idVendor}=="?*", ATTRS{idProduct}=="?*", \
+    RUN+="/bin/bash -c '/usr/local/bin/usb-eth-notify.sh \"%p\" &'"
+EOF_RULES_FILE
+}
+
+# 2. Install udev rule
+install -m 644 99-usb-eth.rules /etc/udev/rules.d/99-usb-eth.rules
+echo "✔ udev rule installed: /etc/udev/rules.d/99-usb-eth.rules"
+
+# 3. Check dependency (usbutils for lsusb)
+if ! command -v lsusb &>/dev/null; then
+    echo "Installing usbutils (required for lsusb)..."
+    apt-get install -y usbutils
+fi
+
+# 5. Reload udev
+udevadm control --reload-rules
+udevadm trigger
+echo "✔ udev rules reloaded"
+
 print_title "Done"
-echo "All tools were installed successfully."
+echo "Installation completed"
+echo "    Test with: sudo /usr/local/bin/usb-eth-notify.sh"
+echo "    Log:       journalctl -u usb-eth-check.service"
+
 echo "Have a zero‑downtime day!"
 
 case ":$PATH:" in
