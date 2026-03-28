@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-readonly VERSION="1.1"
+readonly VERSION="1.5"
 readonly REPO_RAW_BASE="https://raw.githubusercontent.com/ewaldj/usb-eth-notify/refs/heads/main"
 readonly TARGET_SCRIPT="/usr/local/bin/usb-eth-notify.sh"
 readonly RULES_FILE="/etc/udev/rules.d/99-usb-eth.rules"
@@ -67,10 +67,11 @@ create_udev_rule() {
 # When a USB Ethernet adapter is connected, call the notification script.
 #
 # Triggers on USB network interfaces (subsystem "net", parent device is USB).
+# The USB device DEVPATH is passed via ENV{}.
 
 ACTION=="add", SUBSYSTEM=="net", \
     ATTRS{idVendor}=="?*", ATTRS{idProduct}=="?*", \
-    ENV{DEVPATH}="%p", RUN+="/usr/local/bin/usb-eth-notify.sh"
+    RUN+="/bin/bash -c '/usr/local/bin/usb-eth-notify.sh \"%p\" &'"
 EOF
 
     $SUDO install -m 0644 "$tmp_file" "$RULES_FILE"
@@ -112,12 +113,6 @@ EOF
     echo "✔ service file created: $SERVICE_FILE"
 }
 
-# 6. systemd-Service  activate & start 
-systemctl daemon-reload
-systemctl enable --now usb-eth-notify.service
-echo "✔  systemd-Service aktiviert"
-
-
 install_dependencies() {
     if ! command -v lsusb >/dev/null 2>&1; then
         echo "Installing usbutils (required for lsusb)..."
@@ -129,8 +124,14 @@ install_dependencies() {
 reload_udev() {
     $SUDO udevadm control --reload-rules
     $SUDO udevadm trigger
-    echo "✔ udev rules reloaded"
 }
+
+
+reload_udev() {
+    $SUDO systemctl daemon-reload
+    $SUDO systemctl enable --now usb-eth-notify.service
+    }
+
 
 finish_message() {
     echo
@@ -149,8 +150,10 @@ main() {
     check_connectivity
     install_script
     create_udev_rule
+    create_service
     install_dependencies
     reload_udev
+
     finish_message
 }
 
