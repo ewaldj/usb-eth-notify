@@ -6,10 +6,12 @@
 
 set -euo pipefail
 
-readonly VERSION="1.0"
+readonly VERSION="1.1"
 readonly REPO_RAW_BASE="https://raw.githubusercontent.com/ewaldj/usb-eth-notify/refs/heads/main"
 readonly TARGET_SCRIPT="/usr/local/bin/usb-eth-notify.sh"
 readonly RULES_FILE="/etc/udev/rules.d/99-usb-eth.rules"
+
+SUDO=""
 
 print_line() {
     printf '%s\n' "------------------------------------------------------------"
@@ -22,13 +24,19 @@ print_title() {
     print_line
 }
 
-require_root() {
-    if [[ "${EUID}" -ne 0 ]]; then
-        echo "This installer must be run as root."
-        echo "Use:"
-        echo "  sudo /bin/bash -c \"\$(curl -fsSL ${REPO_RAW_BASE}/e-install.sh)\""
+require_root_or_sudo() {
+    if [[ "${EUID}" -eq 0 ]]; then
+        return
+    fi
+
+    if ! command -v sudo >/dev/null 2>&1; then
+        echo "Error: root access is required and sudo is not installed."
         exit 1
     fi
+
+    echo "Root access is required for installation."
+    sudo -v
+    SUDO="sudo"
 }
 
 check_connectivity() {
@@ -43,14 +51,17 @@ install_script() {
     tmp_file="$(mktemp)"
 
     curl -fsSL "${REPO_RAW_BASE}/usb-eth-notify.sh" -o "$tmp_file"
-    install -m 0755 "$tmp_file" "$TARGET_SCRIPT"
+    $SUDO install -m 0755 "$tmp_file" "$TARGET_SCRIPT"
     rm -f "$tmp_file"
 
     echo "✔ Script installed: $TARGET_SCRIPT"
 }
 
 create_udev_rule() {
-    cat >"$RULES_FILE" <<'EOF'
+    local tmp_file
+    tmp_file="$(mktemp)"
+
+    cat >"$tmp_file" <<'EOF'
 # /etc/udev/rules.d/99-usb-eth.rules
 # When a USB Ethernet adapter is connected, call the notification script.
 #
@@ -61,21 +72,23 @@ ACTION=="add", SUBSYSTEM=="net", \
     ENV{DEVPATH}="%p", RUN+="/usr/local/bin/usb-eth-notify.sh"
 EOF
 
-    chmod 0644 "$RULES_FILE"
+    $SUDO install -m 0644 "$tmp_file" "$RULES_FILE"
+    rm -f "$tmp_file"
+
     echo "✔ udev rule created: $RULES_FILE"
 }
 
 install_dependencies() {
     if ! command -v lsusb >/dev/null 2>&1; then
         echo "Installing usbutils (required for lsusb)..."
-        apt-get update
-        apt-get install -y usbutils
+        $SUDO apt-get update
+        $SUDO apt-get install -y usbutils
     fi
 }
 
 reload_udev() {
-    udevadm control --reload-rules
-    udevadm trigger
+    $SUDO udevadm control --reload-rules
+    $SUDO udevadm trigger
     echo "✔ udev rules reloaded"
 }
 
@@ -92,7 +105,7 @@ finish_message() {
 main() {
     print_title "USB Ethernet Notification Installer v${VERSION}"
 
-    require_root
+    require_root_or_sudo
     check_connectivity
     install_script
     create_udev_rule
