@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-readonly VERSION="1.5"
+readonly VERSION="1.6"
 readonly REPO_RAW_BASE="https://raw.githubusercontent.com/ewaldj/usb-eth-notify/refs/heads/main"
 readonly TARGET_SCRIPT="/usr/local/bin/usb-eth-notify.sh"
 readonly TARGET_SCRIPT_LINK="/usr/local/bin/usb-eth-notify"
