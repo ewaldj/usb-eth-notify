@@ -1,7 +1,18 @@
 #!/bin/bash
-# /usr/local/bin/usb-eth-check.sh
-# Checks USB Ethernet adapters and broadcasts a warning to all active terminal sessions if an adapter is running in USB 2.0 mode
-# Writes directly to all active PTYs/TTYs.
+
+# - - - - - - - - - - - - - - - - - - - - - - - -
+# usb-eth-notify.sh  by ewald@jeitler.cc 2026 https://www.jeitler.guru 
+# - - - - - - - - - - - - - - - - - - - - - - - -
+# Monitors USB Ethernet adapters and broadcasts warnings to all active terminals if a USB 2.0 link is detected. 
+# No warning is issued when a USB 3.0 connection is present. 
+# 
+# Compatible with all terminal emulators and GUI environments on Debian/Raspberry Pi OS:
+# XFCE, GNOME, KDE Plasma, LXDE, Mate, Cinnamon, Budgie, Openbox, i3, and more.
+# Supports xfce4-terminal, gnome-terminal, xterm, urxvt, Alacritty, Kitty, Konsole, tmux, screen, SSH sessions, and physical TTYs.
+# Works on any systemd-based Linux distribution
+# - - - - - - - - - - - - - - - - - - - - - - - -
+
+version = '1.1'
 
 DEVPATH="${DEVPATH:-}"
 
@@ -9,18 +20,40 @@ DEVPATH="${DEVPATH:-}"
 notify_all() {
     local msg="$1"
 
-    # Collect all active PTY/TTY devices from 'who'
-    # 'who' output varies in column position, so grep for pts/N or ttyN
     local devs=()
-    while IFS= read -r line; do
-        local dev
-        dev=$(echo "$line" | grep -oP '(pts/\d+|tty\d*)' | head -1)
-        [[ -z "$dev" ]] && continue
-        dev="/dev/${dev}"
-        [[ -c "$dev" ]] && devs+=("$dev")
-    done < <(who)
 
-    [[ ${#devs[@]} -eq 0 ]] && return
+    # === PRIMARY METHOD: Scan all /dev/pts/* ===
+    # This finds ALL active pseudo-terminals, including xfce4-terminal!
+    for dev in /dev/pts/*; do
+        if [[ -c "$dev" ]]; then
+            devs+=("$dev")
+        fi
+    done
+
+    # === Additionally search for physical TTYs ===
+    for dev in /dev/tty{0..9}; do
+        if [[ -c "$dev" ]]; then
+            devs+=("$dev")
+        fi
+    done
+
+    # === Fallback: From 'who' (for SSH sessions not visible in /dev/pts) ===
+    if command -v who &>/dev/null; then
+        while IFS= read -r line; do
+            local dev
+            dev=$(echo "$line" | grep -oP '(pts/\d+|tty\d*)' | head -1)
+            if [[ -n "$dev" ]]; then
+                devs+=("/dev/${dev}")
+            fi
+        done < <(who 2>/dev/null)
+    fi
+
+    # Remove duplicates
+    devs=($(printf '%s\n' "${devs[@]}" | sort -u))
+
+    if [[ ${#devs[@]} -eq 0 ]]; then
+        return
+    fi
 
     # Write each line individually with \r\n so it renders correctly
     # on any TTY/PTY regardless of current cursor position
@@ -63,47 +96,6 @@ ${line2}"
     notify_all "$msg"
     logger -t usb-eth-notify "${tag} ${line2}"
 }
-
-# # --- Check one adapter by its full /sys path with USB3.0 info ---
-# check_adapter() {
-#     local syspath="$1"
-#     local speed vendor product name
-# 
-#     speed=$(cat "${syspath}/speed"       2>/dev/null)
-#     vendor=$(cat "${syspath}/idVendor"   2>/dev/null)
-#     product=$(cat "${syspath}/idProduct" 2>/dev/null)
-# 
-#     [[ -z "$speed" ]] && return 1
-# 
-#     name=$(lsusb -d "${vendor}:${product}" 2>/dev/null \
-#            | sed 's/^.*ID [0-9a-f:]*  *//' | head -1)
-#     [[ -z "$name" ]] && name="USB Ethernet Adapter (${vendor}:${product})"
-# 
-#     local tag line2 
-# 
-#     if [[ "$speed" == "5000" || "$speed" == "10000" || "$speed" == "20000" ]]; then
-#         tag="[ OK – USB 3.0 high-speed mode ]"
-#         line2="Adapter detected: ${name}"
-#     elif [[ "$speed" == "480" ]]; then
-#         tag="[ WARNING – USB 2.0 low‑speed mode; flip the USB‑C connector or use a USB 3.0 port/adapter ]"
-#         line2="Adapter detected: ${name}"
-#     else
-#         tag="  [????]"
-#         line2="Adapter detected: ${name}"
-#     fi
-# 
-#     local msg
-# msg="${tag}
-# ${line2}"
-# 
-#     notify_all "$msg"
-#     logger -t usb-eth-notify "${tag} ${line2}"
-# }
-
-
-
-
-
 
 # --- Walk up sysfs tree to find the USB device node (has idVendor + speed) ---
 find_usb_parent() {
